@@ -1,0 +1,39 @@
+# R specific
+.RData
+.Rhistory
+.Rapp.history
+.RDataTmp
+*-Ex.R
+/*.tar.gz
+/*.Rcheck/
+.Rproj.user/
+vignettes/*.html
+vignettes/*.pdf
+.httr-oauth
+*_cache/
+/cache/
+*.utf8.md
+*.knit.md
+
+# renv (uncomment if you want to track package versions)
+# renv/
+# renv.lock
+
+# Large data files (comment out if you want to track them)
+data/raw/*.csv
+data/raw/*.rds
+data/processed/*.csv
+data/processed/*.rds
+
+# Model files (can be large)
+models/*.rds
+models/*.bin
+
+# Output files
+output/plots/*.png
+output/plots/*.pdf
+output/predictions/*.csv
+
+# System files
+.DS_Store
+Thumbs.db
