@@ -3,7 +3,11 @@
 # Script: launch_dashboard.R
 # Purpose: Simple script to launch the Shiny dashboard
 # ==============================================================================
-
+# run everything firsts
+source("scripts/01_data_collection.R")
+source("scripts/02_feature_engineering.R")
+source("scripts/03_model_training.R")
+source("scripts/04_predictions.R")
 # Install required packages if not already installed
 required_packages <- c("shiny", "shinydashboard", "DT", "plotly", 
                        "shinycssloaders", "here", "dplyr", "readr")
