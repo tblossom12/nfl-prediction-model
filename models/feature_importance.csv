@@ -1,0 +1,21 @@
+Model,Feature,Importance
+Random Forest,turnover_advantage,42.22200877960646
+Random Forest,away_net_epa_per_play,38.46522405321967
+Random Forest,away_net_success_rate,37.765750919483246
+Random Forest,home_net_epa_per_play,33.55645492663591
+Random Forest,red_zone_advantage,30.86890034524061
+Random Forest,home_net_success_rate,30.22713328894791
+Random Forest,pace_differential,26.143977570946667
+Random Forest,third_down_advantage,24.450036508255693
+Random Forest,success_rate_advantage,24.43462880963086
+Random Forest,epa_advantage,23.86582806602293
+XGBoost,away_net_epa_per_play,0.12090698882008248
+XGBoost,home_net_epa_per_play,0.10385172662917523
+XGBoost,turnover_advantage,0.09843893981048128
+XGBoost,red_zone_advantage,0.08195409508377115
+XGBoost,pace_differential,0.07382027590935152
+XGBoost,rush_matchup_advantage,0.06748426088701033
+XGBoost,home_net_success_rate,0.06401155502990909
+XGBoost,pass_matchup_advantage,0.06290214126542715
+XGBoost,away_net_success_rate,0.0627489418608386
+XGBoost,success_rate_advantage,0.06164315952559645
