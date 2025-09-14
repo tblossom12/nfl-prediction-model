@@ -52,9 +52,9 @@ numeric_features <- c(
 all_features <- c(numeric_features, "divisional_game", "season_phase")
 
 # Create training/validation/test splits by season
-train_data <- modeling_data %>% filter(season <= 2021)  # 2019-2021 for training
-val_data <- modeling_data %>% filter(season == 2022)    # 2022 for validation  
-test_data <- modeling_data %>% filter(season == 2023)   # 2023 for final testing
+train_data <- modeling_data %>% filter(season <= 2022)  # Changed from 2021 (2020-2022 for training)
+val_data <- modeling_data %>% filter(season == 2023)    # Changed from 2022 (2023 for validation)  
+test_data <- modeling_data %>% filter(season == 2024)   # Changed from 2023 (2024 for final testing)
 
 print(paste("Training set:", nrow(train_data), "games"))
 print(paste("Validation set:", nrow(val_data), "games"))

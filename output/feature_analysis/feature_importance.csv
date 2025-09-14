@@ -1,0 +1,47 @@
+Model,Feature,Importance,Importance_Normalized,Feature_Category,Feature_Display
+Random Forest,home_net_epa_per_play,41.11929865764191,0.09871697397174066,Team Strength,Home Net EPA
+Random Forest,away_net_success_rate,39.17009135625575,0.09403742318371418,Team Strength,Away Net Success Rate
+Random Forest,away_net_epa_per_play,39.124983673563705,0.09392913111445222,Team Strength,Away Net EPA
+Random Forest,turnover_advantage,36.39073335263186,0.08736489177732314,Situational,Turnover Advantage
+Random Forest,home_net_success_rate,34.84220107718337,0.08364725978163637,Team Strength,Home Net Success Rate
+Random Forest,epa_advantage,28.088740849910256,0.06743392007889305,Core Matchups,EPA Advantage
+Random Forest,third_down_advantage,28.04065295297122,0.06731847327348885,Situational,Third Down Advantage
+Random Forest,red_zone_advantage,27.45299624762513,0.06590765904319341,Situational,Red Zone Advantage
+Random Forest,rush_matchup_advantage,26.648161903418053,0.0639754565591443,Specific Matchups,Rush Matchup Advantage
+Random Forest,success_rate_advantage,25.03399380820913,0.06010024966012927,Core Matchups,Success Rate Advantage
+Random Forest,pass_matchup_advantage,24.7626401447854,0.05944879855556724,Specific Matchups,Pass Matchup Advantage
+Random Forest,pace_differential,22.413213561540253,0.05380842310077764,Context,Pace Differential
+Random Forest,week,20.40722652792638,0.04899255862230829,Context,Week
+Random Forest,rest_differential,12.238970868259743,0.029382655056991093,Context,Rest Differential
+Random Forest,season_phase,7.56642315284725,0.018165056842475644,Context,season_phase
+Random Forest,divisional_game,3.236940009339049,0.007771069378164673,Context,divisional_game
+XGBoost,home_net_epa_per_play,0.13203747876096586,0.13203747876096586,Team Strength,Home Net EPA
+XGBoost,away_net_epa_per_play,0.12149167114541096,0.12149167114541096,Team Strength,Away Net EPA
+XGBoost,away_net_success_rate,0.0997217301722214,0.0997217301722214,Team Strength,Away Net Success Rate
+XGBoost,red_zone_advantage,0.08389336896435108,0.08389336896435108,Situational,Red Zone Advantage
+XGBoost,home_net_success_rate,0.07920636941085399,0.07920636941085399,Team Strength,Home Net Success Rate
+XGBoost,rush_matchup_advantage,0.07782172453304402,0.07782172453304402,Specific Matchups,Rush Matchup Advantage
+XGBoost,epa_advantage,0.058126288828738694,0.058126288828738694,Core Matchups,EPA Advantage
+XGBoost,pass_matchup_advantage,0.05713861985353948,0.05713861985353948,Specific Matchups,Pass Matchup Advantage
+XGBoost,turnover_advantage,0.055397158410079216,0.055397158410079216,Situational,Turnover Advantage
+XGBoost,pace_differential,0.05324935536191221,0.05324935536191221,Context,Pace Differential
+XGBoost,success_rate_advantage,0.05212810901878352,0.05212810901878352,Core Matchups,Success Rate Advantage
+XGBoost,third_down_advantage,0.052075463582110106,0.052075463582110106,Situational,Third Down Advantage
+XGBoost,week,0.03907059776534162,0.03907059776534162,Context,Week
+XGBoost,rest_differential,0.02141480184672064,0.02141480184672064,Context,Rest Differential
+XGBoost,season_phase,0.012703063168786275,0.012703063168786275,Context,season_phase
+XGBoost,divisional_game,0.0045241991771409465,0.0045241991771409465,Context,divisional_game
+Logistic Regression,epa_advantage,0.7891406152722501,0.02979981353106973,Core Matchups,EPA Advantage
+Logistic Regression,success_rate_advantage,0,0,Core Matchups,Success Rate Advantage
+Logistic Regression,rush_matchup_advantage,0,0,Specific Matchups,Rush Matchup Advantage
+Logistic Regression,pass_matchup_advantage,0,0,Specific Matchups,Pass Matchup Advantage
+Logistic Regression,red_zone_advantage,0.5604037327880237,0.021162168586947118,Situational,Red Zone Advantage
+Logistic Regression,third_down_advantage,0,0,Situational,Third Down Advantage
+Logistic Regression,turnover_advantage,7.1632283576314695,0.27050042185985435,Situational,Turnover Advantage
+Logistic Regression,home_net_epa_per_play,3.935911452239058,0.14862931280132052,Team Strength,Home Net EPA
+Logistic Regression,away_net_epa_per_play,3.889985573603197,0.14689504315011642,Team Strength,Away Net EPA
+Logistic Regression,home_net_success_rate,4.852358646352532,0.18323652343922664,Team Strength,Home Net Success Rate
+Logistic Regression,away_net_success_rate,5.290366025789196,0.1997767166314653,Team Strength,Away Net Success Rate
+Logistic Regression,pace_differential,0,0,Context,Pace Differential
+Logistic Regression,rest_differential,0,0,Context,Rest Differential
+Logistic Regression,week,0,0,Context,Week

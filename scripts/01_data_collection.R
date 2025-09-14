@@ -23,8 +23,8 @@ if (!dir.exists(data_processed_path)) dir.create(data_processed_path, recursive 
 # ==============================================================================
 
 # Define seasons to collect (adjust as needed)
-SEASONS <- 2019:2023  # 5 seasons of data
-CURRENT_SEASON <- 2024  # Update this for current season
+SEASONS <- 2020:2024  # Changed from 2019:2023 (shift up 1 year)
+CURRENT_SEASON <- 2025  # Changed from 2024
 
 print(paste("Collecting NFL data for seasons:", min(SEASONS), "to", max(SEASONS)))
 

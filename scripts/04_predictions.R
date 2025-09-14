@@ -74,7 +74,7 @@ is_divisional_game <- function(home_team, away_team) {
 print("=== LOADING CURRENT SEASON DATA ===")
 
 # Define current season
-CURRENT_SEASON <- 2024
+CURRENT_SEASON <- 2025
 
 # Load current season schedule
 current_schedule <- load_schedules(seasons = CURRENT_SEASON)
