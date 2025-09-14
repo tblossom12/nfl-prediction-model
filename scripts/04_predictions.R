@@ -1,7 +1,7 @@
 # ==============================================================================
-# NFL PREDICTION MODEL - MAKE PREDICTIONS
-# Script: 04_predictions.R  
-# Purpose: Use trained models to predict upcoming NFL games
+# NFL PREDICTION MODEL - MAKE PREDICTIONS (FIXED)
+# Script: 04_predictions_fixed.R  
+# Purpose: Use trained models to predict upcoming NFL games with factor level fixes
 # ==============================================================================
 
 # Load required libraries
@@ -25,7 +25,47 @@ print("=== LOADING TRAINED MODELS ===")
 trained_models <- readRDS(here(models_path, "trained_models.rds"))
 team_stats <- read_rds(here(data_processed_path, "team_stats_by_season.rds"))
 
+# CRITICAL FIX: Load the training data to get factor levels
+modeling_data <- read_rds(here(data_processed_path, "modeling_data.rds"))
+
+# Extract the factor levels from training data
+SEASON_PHASE_LEVELS <- levels(modeling_data$season_phase)
+DIVISIONAL_GAME_LEVELS <- levels(modeling_data$divisional_game)
+
 print("✓ Models loaded successfully")
+print(paste("Season phase levels from training:", paste(SEASON_PHASE_LEVELS, collapse = ", ")))
+print(paste("Divisional game levels from training:", paste(DIVISIONAL_GAME_LEVELS, collapse = ", ")))
+
+# ==============================================================================
+# DIVISION MAPPING (NEEDED FOR DIVISIONAL GAMES)
+# ==============================================================================
+
+# Create comprehensive team division mapping
+team_divisions <- data.frame(
+  team_abbr = c("ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", 
+                "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC",
+                "LV", "LAC", "LAR", "MIA", "MIN", "NE", "NO", "NYG",
+                "NYJ", "PHI", "PIT", "SF", "SEA", "TB", "TEN", "WAS"),
+  division = c("NFC West", "NFC South", "AFC North", "AFC East", "NFC South", "NFC North", 
+               "AFC North", "AFC North", "NFC East", "AFC West", "NFC North", "NFC North", 
+               "AFC South", "AFC South", "AFC South", "AFC West", "AFC West", "AFC West", 
+               "NFC West", "AFC East", "NFC North", "AFC East", "NFC South", "NFC East",
+               "AFC East", "NFC East", "AFC North", "NFC West", "NFC West", "NFC South", 
+               "AFC South", "NFC East"),
+  conference = c("NFC", "NFC", "AFC", "AFC", "NFC", "NFC", "AFC", "AFC",
+                 "NFC", "AFC", "NFC", "NFC", "AFC", "AFC", "AFC", "AFC",
+                 "AFC", "AFC", "NFC", "AFC", "NFC", "AFC", "NFC", "NFC", 
+                 "AFC", "NFC", "AFC", "NFC", "NFC", "NFC", "AFC", "NFC")
+)
+
+# Function to determine if game is divisional
+is_divisional_game <- function(home_team, away_team) {
+  home_div <- team_divisions$division[team_divisions$team_abbr == home_team]
+  away_div <- team_divisions$division[team_divisions$team_abbr == away_team]
+  
+  if (length(home_div) == 0 || length(away_div) == 0) return(0)
+  return(as.numeric(home_div == away_div))
+}
 
 # ==============================================================================
 # GET CURRENT SEASON DATA
@@ -120,13 +160,47 @@ if (nrow(current_pbp) > 0) {
 }
 
 # ==============================================================================
-# PREDICTION FUNCTIONS
+# FIXED PREDICTION FUNCTIONS
 # ==============================================================================
 
 print("=== SETTING UP PREDICTION FUNCTIONS ===")
 
-# Function to create features for a single game
-create_game_features <- function(home_team, away_team, week, season_phase = "Regular") {
+# Function to safely convert factors with training levels
+safe_factor_conversion <- function(value, training_levels) {
+  if (value %in% training_levels) {
+    return(factor(value, levels = training_levels))
+  } else {
+    # Default to the first level if new level encountered
+    warning(paste("Unknown factor level:", value, "- using default:", training_levels[1]))
+    return(factor(training_levels[1], levels = training_levels))
+  }
+}
+
+# Function to determine season phase based on week
+get_season_phase <- function(week_num) {
+  phase <- case_when(
+    week_num <= 6 ~ "Early",
+    week_num <= 12 ~ "Mid", 
+    week_num <= 18 ~ "Late",
+    TRUE ~ "Playoffs"
+  )
+  
+  # Ensure it matches training levels
+  if (!phase %in% SEASON_PHASE_LEVELS) {
+    warning(paste("Season phase", phase, "not in training data. Using 'Mid' instead."))
+    phase <- "Mid"
+  }
+  
+  return(phase)
+}
+
+# Function to create features for a single game (FIXED)
+create_game_features <- function(home_team, away_team, week, season_phase = NULL) {
+  
+  # Determine season phase if not provided
+  if (is.null(season_phase)) {
+    season_phase <- get_season_phase(week)
+  }
   
   # Get home team stats
   home_stats <- current_team_stats %>% 
@@ -139,8 +213,11 @@ create_game_features <- function(home_team, away_team, week, season_phase = "Reg
     select(-season, -posteam)
   
   if (nrow(home_stats) == 0 || nrow(away_stats) == 0) {
-    stop("Team stats not found for one or both teams")
+    stop(paste("Team stats not found for teams:", home_team, "or", away_team))
   }
+  
+  # Determine if divisional game
+  div_game_value <- is_divisional_game(home_team, away_team)
   
   # Calculate matchup features
   features <- data.frame(
@@ -175,21 +252,25 @@ create_game_features <- function(home_team, away_team, week, season_phase = "Reg
     
     # Context features
     pace_differential = home_stats$rush_pass_balance - away_stats$rush_pass_balance,
-    divisional_game = 0,  # Would need division lookup
-    rest_differential = 0,  # Would need rest days calculation
-    week = week,
-    season_phase = season_phase
+    rest_differential = 0,  # Default to 0 if not available
+    week = week
   )
   
-  # Convert factors
-  features$divisional_game <- as.factor(features$divisional_game)
-  features$season_phase <- as.factor(features$season_phase)
+  # CRITICAL FIX: Convert factors using training levels
+  features$divisional_game <- safe_factor_conversion(as.character(div_game_value), DIVISIONAL_GAME_LEVELS)
+  features$season_phase <- safe_factor_conversion(season_phase, SEASON_PHASE_LEVELS)
+  
+  # Handle any NA values that might cause issues
+  numeric_cols <- sapply(features, is.numeric)
+  features[numeric_cols] <- lapply(features[numeric_cols], function(x) {
+    ifelse(is.na(x) | is.infinite(x), 0, x)
+  })
   
   return(features)
 }
 
-# Function to predict a single game using all models
-predict_game <- function(home_team, away_team, week = 1, season_phase = "Regular") {
+# Function to predict a single game using all models (FIXED)
+predict_game <- function(home_team, away_team, week = 1, season_phase = NULL) {
   
   cat("Predicting:", away_team, "@", home_team, "\n")
   
@@ -211,15 +292,18 @@ predict_game <- function(home_team, away_team, week = 1, season_phase = "Regular
     logistic_prob <- predict(trained_models$logistic, X_matrix, type = "response", s = "lambda.min")[1,1]
     
     # Random Forest prediction
-    rf_prob <- predict(trained_models$random_forest, game_features, type = "prob")["Win"]
+    rf_prob <- predict(trained_models$random_forest, game_features, type = "prob")[1, "Win"]
     
     # XGBoost prediction (need to convert factors to numeric)
     game_features_xgb <- game_features %>%
       mutate(
         divisional_game = as.numeric(as.character(divisional_game)),
-        season_phase = as.numeric(as.factor(season_phase))
+        season_phase = as.numeric(season_phase)  # This will now work correctly
       )
-    xgb_matrix <- xgb.DMatrix(data = as.matrix(game_features_xgb))
+    
+    # Handle XGBoost matrix creation more safely
+    xgb_data <- as.matrix(game_features_xgb[, names(game_features_xgb) != ""])
+    xgb_matrix <- xgb.DMatrix(data = xgb_data)
     xgb_prob <- predict(trained_models$xgboost, xgb_matrix)
     
     # SVM prediction
@@ -234,6 +318,8 @@ predict_game <- function(home_team, away_team, week = 1, season_phase = "Regular
       home_team = home_team,
       away_team = away_team,
       week = week,
+      season_phase = as.character(game_features$season_phase),
+      divisional_game = as.character(game_features$divisional_game),
       logistic_prob = round(logistic_prob, 3),
       rf_prob = round(rf_prob, 3),
       xgb_prob = round(xgb_prob, 3),
@@ -269,22 +355,22 @@ if (nrow(upcoming_games) > 0) {
   print(paste("Found", nrow(upcoming_games), "upcoming games to predict"))
   
   # Make predictions for upcoming games
-  upcoming_predictions <- upcoming_games %>%
-    rowwise() %>%
-    do({
-      pred <- predict_game(.$home_team, .$away_team, .$week)
-      if (!is.null(pred)) {
-        cbind(
-          game_id = .$game_id,
-          season = .$season,
-          gameday = .$gameday,
-          pred
-        )
-      } else {
-        data.frame()
-      }
-    }) %>%
-    ungroup()
+  upcoming_predictions <- data.frame()
+  
+  for (i in 1:nrow(upcoming_games)) {
+    game <- upcoming_games[i, ]
+    pred <- predict_game(game$home_team, game$away_team, game$week)
+    
+    if (!is.null(pred)) {
+      pred_with_context <- cbind(
+        game_id = game$game_id,
+        season = game$season,
+        gameday = game$gameday,
+        pred
+      )
+      upcoming_predictions <- bind_rows(upcoming_predictions, pred_with_context)
+    }
+  }
   
   print("✓ Predictions completed for upcoming games")
   
@@ -299,7 +385,8 @@ if (nrow(upcoming_games) > 0) {
 
 print("=== EXAMPLE PREDICTIONS ===")
 
-# Example predictions for popular matchups
+# Example predictions for popular matchups (check if teams exist in stats)
+available_teams <- unique(current_team_stats$posteam)
 example_matchups <- list(
   c("KC", "BUF"),
   c("BAL", "CIN"), 
@@ -313,9 +400,14 @@ for (matchup in example_matchups) {
   home_team <- matchup[1]
   away_team <- matchup[2]
   
-  pred <- predict_game(home_team, away_team, week = 10, season_phase = "Regular")
-  if (!is.null(pred)) {
-    example_predictions <- bind_rows(example_predictions, pred)
+  # Check if both teams have stats
+  if (home_team %in% available_teams && away_team %in% available_teams) {
+    pred <- predict_game(home_team, away_team, week = 10)
+    if (!is.null(pred)) {
+      example_predictions <- bind_rows(example_predictions, pred)
+    }
+  } else {
+    cat("Skipping", away_team, "@", home_team, "- missing team stats\n")
   }
 }
 
@@ -325,10 +417,31 @@ if (nrow(example_predictions) > 0) {
 }
 
 # ==============================================================================
-# WEEKLY PREDICTIONS FUNCTION
+# INTERACTIVE FUNCTIONS
 # ==============================================================================
 
-# Function to predict all games in a specific week
+# Function for manual predictions (FIXED)
+manual_predict <- function(home_team, away_team, week = 1) {
+  result <- predict_game(home_team, away_team, week)
+  if (!is.null(result)) {
+    cat("\n=== GAME PREDICTION ===\n")
+    cat("Matchup:", result$away_team, "@", result$home_team, "\n")
+    cat("Week:", result$week, "\n")
+    cat("Season Phase:", result$season_phase, "\n")
+    cat("Divisional Game:", result$divisional_game, "\n\n")
+    cat("MODEL PROBABILITIES (Home Team Win):\n")
+    cat("Logistic Regression:", result$logistic_prob, "\n")
+    cat("Random Forest:      ", result$rf_prob, "\n") 
+    cat("XGBoost:            ", result$xgb_prob, "\n")
+    cat("SVM:                ", result$svm_prob, "\n")
+    cat("ENSEMBLE:           ", result$ensemble_prob, "\n\n")
+    cat("PREDICTION:", result$predicted_winner, "wins with", result$confidence, "confidence\n")
+    cat("========================\n\n")
+  }
+  return(result)
+}
+
+# Function to predict all games in a specific week (FIXED)
 predict_week <- function(week_num, season = CURRENT_SEASON) {
   
   cat("Predicting all games for Week", week_num, "of", season, "season\n")
@@ -342,26 +455,43 @@ predict_week <- function(week_num, season = CURRENT_SEASON) {
     return(data.frame())
   }
   
-  week_predictions <- week_games %>%
-    rowwise() %>%
-    do({
-      pred <- predict_game(.$home_team, .$away_team, .$week)
-      if (!is.null(pred)) {
-        cbind(
-          game_id = .$game_id,
-          season = .$season,
-          gameday = .$gameday,
-          gametime = .$gametime,
-          pred
-        )
-      } else {
-        data.frame()
-      }
-    }) %>%
-    ungroup() %>%
-    arrange(gameday, gametime)
+  week_predictions <- data.frame()
+  
+  for (i in 1:nrow(week_games)) {
+    game <- week_games[i, ]
+    pred <- predict_game(game$home_team, game$away_team, game$week)
+    
+    if (!is.null(pred)) {
+      pred_with_context <- cbind(
+        game_id = game$game_id,
+        season = game$season,
+        gameday = game$gameday,
+        gametime = if("gametime" %in% names(game)) game$gametime else NA,
+        pred
+      )
+      week_predictions <- bind_rows(week_predictions, pred_with_context)
+    }
+  }
+  
+  week_predictions <- week_predictions %>% arrange(gameday)
   
   return(week_predictions)
+}
+
+# Function to get team strength rankings
+get_team_rankings <- function() {
+  rankings <- current_team_stats %>%
+    mutate(
+      overall_rating = net_epa_per_play * 100,  # Convert to more readable scale
+      offensive_rating = off_epa_per_play * 100,
+      defensive_rating = -def_epa_allowed * 100  # Negative because lower is better for defense
+    ) %>%
+    arrange(desc(overall_rating)) %>%
+    select(posteam, overall_rating, offensive_rating, defensive_rating, 
+           off_epa_per_play, def_epa_allowed, net_epa_per_play) %>%
+    mutate(rank = row_number())
+  
+  return(rankings)
 }
 
 # ==============================================================================
@@ -389,62 +519,27 @@ prediction_summary <- data.frame(
   total_upcoming_games = nrow(upcoming_predictions),
   models_used = "Logistic, Random Forest, XGBoost, SVM",
   ensemble_method = "Simple Average",
-  data_through = if(nrow(current_pbp) > 0) max(current_pbp$week, na.rm = TRUE) else "Preseason"
+  data_through = if(nrow(current_pbp) > 0) max(current_pbp$week, na.rm = TRUE) else "Preseason",
+  factor_levels_fixed = TRUE
 )
 
 write_csv(prediction_summary, here(output_path, "prediction_summary.csv"))
 
-# ==============================================================================
-# INTERACTIVE PREDICTION FUNCTION
-# ==============================================================================
-
-print("=== INTERACTIVE FUNCTIONS READY ===")
-
-# Function for manual predictions
-manual_predict <- function(home_team, away_team, week = 1) {
-  result <- predict_game(home_team, away_team, week)
-  if (!is.null(result)) {
-    cat("\n=== GAME PREDICTION ===\n")
-    cat("Matchup:", result$away_team, "@", result$home_team, "\n")
-    cat("Week:", result$week, "\n\n")
-    cat("MODEL PROBABILITIES (Home Team Win):\n")
-    cat("Logistic Regression:", result$logistic_prob, "\n")
-    cat("Random Forest:      ", result$rf_prob, "\n") 
-    cat("XGBoost:            ", result$xgb_prob, "\n")
-    cat("SVM:                ", result$svm_prob, "\n")
-    cat("ENSEMBLE:           ", result$ensemble_prob, "\n\n")
-    cat("PREDICTION:", result$predicted_winner, "wins with", result$confidence, "confidence\n")
-    cat("========================\n\n")
-  }
-  return(result)
-}
-
-# Function to get team strength rankings
-get_team_rankings <- function() {
-  rankings <- current_team_stats %>%
-    mutate(
-      overall_rating = net_epa_per_play * 100,  # Convert to more readable scale
-      offensive_rating = off_epa_per_play * 100,
-      defensive_rating = -def_epa_allowed * 100  # Negative because lower is better for defense
-    ) %>%
-    arrange(desc(overall_rating)) %>%
-    select(posteam, overall_rating, offensive_rating, defensive_rating, 
-           off_epa_per_play, def_epa_allowed, net_epa_per_play) %>%
-    mutate(rank = row_number())
-  
-  return(rankings)
-}
+print("✓ All predictions saved successfully")
 
 # ==============================================================================
 # FINAL SUMMARY AND USAGE EXAMPLES
 # ==============================================================================
 
-print("=== PREDICTION SYSTEM READY ===")
+print("=== PREDICTION SYSTEM READY (FIXED) ===")
 print(paste("System initialized at:", Sys.time()))
 print(paste("Current season:", CURRENT_SEASON))
 
 if (nrow(current_team_stats) > 0) {
   print(paste("Team stats available for", nrow(current_team_stats), "teams"))
+  
+  # Show available teams
+  cat("Available teams:", paste(sort(current_team_stats$posteam), collapse = ", "), "\n")
   
   # Show team rankings
   team_rankings <- get_team_rankings()
@@ -466,5 +561,18 @@ cat("- Upcoming predictions:", here(output_path, paste0("upcoming_predictions_",
 cat("- Example predictions:", here(output_path, paste0("example_predictions_", Sys.Date(), ".csv")), "\n")
 cat("- Prediction summary:", here(output_path, "prediction_summary.csv"), "\n")
 
-print("\n=== PREDICTION SYSTEM COMPLETE ===")
-print("You can now make predictions for any NFL matchup!")
+print("\n=== PREDICTION SYSTEM COMPLETE (FACTOR LEVELS FIXED) ===")
+print("The factor level issue has been resolved. You can now make predictions!")
+
+# Test the system with a simple prediction if data is available
+if (nrow(current_team_stats) >= 2) {
+  cat("\n=== TESTING PREDICTION SYSTEM ===\n")
+  test_teams <- head(current_team_stats$posteam, 2)
+  cat("Testing with teams:", test_teams[1], "vs", test_teams[2], "\n")
+  
+  test_result <- predict_game(test_teams[1], test_teams[2], week = 10)
+  if (!is.null(test_result)) {
+    cat("✓ Test prediction successful!\n")
+    cat("Predicted winner:", test_result$predicted_winner, "with", test_result$confidence, "confidence\n")
+  }
+}
