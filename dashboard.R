@@ -1,5 +1,5 @@
 # ==============================================================================
-# NFL PREDICTION MODEL - REWORKED DASHBOARD
+# NFL PREDICTION MODEL - REWORKED DASHBOARD (UPDATED)
 # Script: dashboard_reworked.R
 # Purpose: Clean, focused dashboard with Weekly Matchups, Model Info, and Data pages
 # ==============================================================================
@@ -16,7 +16,7 @@ library(nflreadr)
 library(shinycssloaders)
 library(tidyr)
 
-# Source prediction functions
+# Source prediction functions (updated for dynamic features)
 source(here("scripts", "04_predictions.R"))
 
 # ==============================================================================
@@ -168,7 +168,7 @@ ui <- dashboardPage(
       ),
       
       # ==============================================================================
-      # MODEL INFORMATION TAB
+      # MODEL INFORMATION TAB (UPDATED - REMOVED PERFORMANCE GRAPH & FEATURE DESCRIPTIONS)
       # ==============================================================================
       tabItem(tabName = "models",
               fluidRow(
@@ -179,12 +179,7 @@ ui <- dashboardPage(
               
               fluidRow(
                 box(
-                  title = "Model Performance Comparison", status = "primary", solidHeader = TRUE, width = 8,
-                  withSpinner(plotlyOutput("model_performance_plot"))
-                ),
-                
-                box(
-                  title = "Performance Metrics", status = "info", solidHeader = TRUE, width = 4,
+                  title = "Performance Metrics", status = "primary", solidHeader = TRUE, width = 12,
                   withSpinner(DT::dataTableOutput("performance_metrics_table"))
                 )
               ),
@@ -200,14 +195,6 @@ ui <- dashboardPage(
                            withSpinner(plotlyOutput("feature_importance_xgb"))
                     )
                   )
-                )
-              ),
-              
-              fluidRow(
-                box(
-                  title = "Feature Descriptions", status = "warning", solidHeader = TRUE, 
-                  width = 12, collapsible = TRUE,
-                  withSpinner(DT::dataTableOutput("feature_descriptions_table"))
                 )
               ),
               
@@ -442,7 +429,7 @@ server <- function(input, output, session) {
   }, options = list(pageLength = 20, scrollX = TRUE))
   
   # ==============================================================================
-  # MODEL INFORMATION SERVER LOGIC
+  # MODEL INFORMATION SERVER LOGIC (UPDATED - REMOVED PERFORMANCE PLOT)
   # ==============================================================================
   
   # Value boxes for model performance
@@ -483,20 +470,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # Model performance plot
-  output$model_performance_plot <- renderPlotly({
-    p <- performance_data %>%
-      filter(!is.na(Accuracy)) %>%
-      plot_ly(x = ~reorder(Model, Accuracy), y = ~Accuracy, type = "bar",
-              text = ~paste("AUC:", round(AUC, 3)), textposition = "outside",
-              marker = list(color = c("#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#1f77b4"))) %>%
-      layout(title = "Model Performance Comparison",
-             yaxis = list(title = "Accuracy", range = c(0.5, 0.8)),
-             xaxis = list(title = "Model"))
-    p
-  })
-  
-  # Performance metrics table
+  # Performance metrics table (now full width)
   output$performance_metrics_table <- DT::renderDataTable({
     performance_data %>%
       select(Model, Accuracy, AUC, F1_Score, Precision, Recall) %>%
@@ -527,34 +501,6 @@ server <- function(input, output, session) {
              xaxis = list(title = "", tickangle = -45))
     p
   })
-  
-  # Feature descriptions table
-  output$feature_descriptions_table <- DT::renderDataTable({
-    feature_descriptions <- data.frame(
-      Feature = c("epa_advantage", "success_rate_advantage", "rush_matchup_advantage",
-                  "pass_matchup_advantage", "home_net_epa_per_play", "away_net_epa_per_play",
-                  "red_zone_advantage", "third_down_advantage", "turnover_advantage",
-                  "home_net_success_rate", "away_net_success_rate", "pace_differential"),
-      Description = c(
-        "Overall EPA advantage combining offense vs defense matchups",
-        "Success rate differential between team matchups", 
-        "Rushing offense vs rushing defense advantage",
-        "Passing offense vs passing defense advantage",
-        "Home team's net EPA per play (offense - defense)",
-        "Away team's net EPA per play (offense - defense)",
-        "Red zone scoring efficiency differential",
-        "Third down conversion rate advantage",
-        "Expected turnover margin based on team rates",
-        "Home team's net success rate",
-        "Away team's net success rate", 
-        "Difference in rushing vs passing tendencies"
-      ),
-      Impact = c("Very High", "Very High", "High", "High", "High", "High",
-                 "Medium", "Medium", "Medium", "Medium", "Medium", "Low")
-    )
-    
-    feature_descriptions
-  }, options = list(pageLength = 15))
   
   # ==============================================================================
   # TEAM DATA SERVER LOGIC
