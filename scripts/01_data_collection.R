@@ -83,12 +83,33 @@ rosters <- safe_load_data(
 )
 
 # Injuries (current season only - historical not available)
-injuries <- tryCatch({
-  load_injuries(CURRENT_SEASON)
-}, error = function(e) {
-  print("Injury data not available")
-  NULL
-})
+# Replace the injury loading section in 01_data_collection.R with this:
+
+# Injuries (load most recent available season)
+print("=== COLLECTING INJURY DATA ===")
+injuries <- NULL
+injury_seasons_to_try <- c(CURRENT_SEASON, CURRENT_SEASON - 1, CURRENT_SEASON - 2)
+
+for (injury_season in injury_seasons_to_try) {
+  cat("Trying injury data for season", injury_season, "...")
+  injuries <- tryCatch({
+    data <- load_injuries(injury_season)
+    cat(" ✓ Success!\n")
+    data$season_loaded <- injury_season  # Track which season we got
+    return(data)
+  }, error = function(e) {
+    cat(" ✗ Not available\n")
+    return(NULL)
+  })
+  
+  if (!is.null(injuries)) break
+}
+
+if (is.null(injuries)) {
+  print("No injury data available for recent seasons")
+} else {
+  print(paste("✓ Injury data loaded for season", unique(injuries$season_loaded)))
+}
 
 # ==============================================================================
 # BASIC DATA VALIDATION

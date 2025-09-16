@@ -41,12 +41,20 @@ set.seed(42)
 
 # Define features for modeling (excluding categorical for some models)
 numeric_features <- c(
-  "epa_advantage", "success_rate_advantage",
-  "rush_matchup_advantage", "pass_matchup_advantage",
-  "red_zone_advantage", "third_down_advantage", "turnover_advantage",
-  "home_net_epa_per_play", "away_net_epa_per_play",
-  "home_net_success_rate", "away_net_success_rate",
-  "pace_differential", "rest_differential", "week"
+  "epa_advantage",
+  "success_rate_advantage",
+  "rush_matchup_advantage",
+  #"pass_matchup_advantage",
+  "red_zone_advantage",
+  "third_down_advantage",
+  "turnover_advantage",
+  "home_net_epa_per_play",
+  "away_net_epa_per_play",
+  "home_net_success_rate",
+  "away_net_success_rate",
+  #"pace_differential",
+  "rest_differential",
+  "week"
 )
 
 all_features <- c(numeric_features, "divisional_game", "season_phase")
@@ -348,6 +356,116 @@ feature_importance <- bind_rows(rf_importance[1:10,], xgb_importance[1:10,])
 print("TOP 10 MOST IMPORTANT FEATURES:")
 print(feature_importance)
 
+
+# ==============================================================================
+# AUTOMATED FEATURE SELECTION AND OPTIMIZATION
+# ==============================================================================
+
+print("=== FEATURE OPTIMIZATION PROCESS ===")
+
+# 1. BASELINE MODEL PERFORMANCE
+baseline_accuracy <- ensemble_test_metrics$Accuracy
+
+# 2. IDENTIFY LOW IMPACT FEATURES
+# Combine Random Forest and XGBoost importance scores
+combined_importance <- feature_importance %>%
+  group_by(Feature) %>%
+  summarise(avg_importance = mean(Importance, na.rm = TRUE)) %>%
+  arrange(desc(avg_importance))
+
+print("Feature importance ranking:")
+print(combined_importance)
+
+# Set thresholds for feature categories
+very_high_threshold <- 0.15
+high_threshold <- 0.10
+medium_threshold <- 0.05
+
+# Categorize features by importance
+feature_categories <- combined_importance %>%
+  mutate(
+    impact_level = case_when(
+      avg_importance >= very_high_threshold ~ "Very High",
+      avg_importance >= high_threshold ~ "High", 
+      avg_importance >= medium_threshold ~ "Medium",
+      TRUE ~ "Low"
+    )
+  )
+
+print("Features by impact level:")
+print(feature_categories %>% count(impact_level))
+
+# 3. TEST FEATURE SUBSETS
+test_feature_combinations <- list(
+  "Top_5" = feature_categories %>% slice_head(n = 5) %>% pull(Feature),
+  "Medium_Plus" = feature_categories %>% filter(impact_level %in% c("Very High", "High", "Medium")) %>% pull(Feature),
+  "High_Plus" = feature_categories %>% filter(impact_level %in% c("Very High", "High")) %>% pull(Feature),
+  "Very_High_Only" = feature_categories %>% filter(impact_level == "Very High") %>% pull(Feature)
+)
+
+# Function to test a feature subset
+test_feature_subset <- function(features_to_use, subset_name) {
+  cat("Testing feature subset:", subset_name, "(", length(features_to_use), "features )\n")
+  
+  # Prepare data with selected features only
+  X_train_subset <- X_train[, features_to_use, drop = FALSE]
+  X_test_subset <- X_test[, features_to_use, drop = FALSE]
+  
+  # Quick Random Forest model (fastest to train)
+  rf_subset <- randomForest(
+    x = X_train_subset,
+    y = y_train,
+    ntree = 100,  # Reduced for speed
+    mtry = max(1, sqrt(length(features_to_use)))
+  )
+  
+  # Test predictions
+  pred_subset <- predict(rf_subset, X_test_subset, type = "prob")[, "Win"]
+  pred_subset_class <- predict(rf_subset, X_test_subset, type = "class")
+  
+  # Calculate accuracy
+  accuracy_subset <- mean(y_test == pred_subset_class)
+  
+  return(data.frame(
+    subset_name = subset_name,
+    num_features = length(features_to_use),
+    accuracy = accuracy_subset,
+    improvement = accuracy_subset - baseline_accuracy
+  ))
+}
+
+# Test all feature combinations
+subset_results <- do.call(rbind, lapply(names(test_feature_combinations), function(name) {
+  test_feature_subset(test_feature_combinations[[name]], name)
+}))
+
+print("Feature subset performance:")
+print(subset_results %>% arrange(desc(accuracy)))
+
+# 4. RECOMMEND OPTIMAL FEATURE SET
+best_subset <- subset_results %>% slice_max(accuracy, n = 1)
+optimal_features <- test_feature_combinations[[best_subset$subset_name]]
+
+cat("\n=== FEATURE OPTIMIZATION RESULTS ===\n")
+cat("Best feature subset:", best_subset$subset_name, "\n")
+cat("Number of features:", best_subset$num_features, "\n") 
+cat("Accuracy improvement:", round(best_subset$improvement * 100, 2), "%\n")
+
+cat("\nOptimal feature set:\n")
+cat(paste("-", optimal_features), sep = "\n")
+
+# Save optimization results
+feature_optimization_results <- list(
+  baseline_accuracy = baseline_accuracy,
+  feature_categories = feature_categories,
+  subset_results = subset_results,
+  optimal_features = optimal_features
+)
+
+saveRDS(feature_optimization_results, here(models_path, "feature_optimization.rds"))
+write_csv(feature_categories, here(models_path, "feature_importance_categories.csv"))
+
+print("Feature optimization results saved!")
 # ==============================================================================
 # ENSEMBLE MODEL
 # ==============================================================================

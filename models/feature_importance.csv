@@ -1,21 +1,21 @@
 Model,Feature,Importance
-Random Forest,home_net_epa_per_play,41.11929865764191
-Random Forest,away_net_success_rate,39.17009135625575
-Random Forest,away_net_epa_per_play,39.124983673563705
-Random Forest,turnover_advantage,36.39073335263186
-Random Forest,home_net_success_rate,34.84220107718337
-Random Forest,epa_advantage,28.088740849910256
-Random Forest,third_down_advantage,28.04065295297122
-Random Forest,red_zone_advantage,27.45299624762513
-Random Forest,rush_matchup_advantage,26.648161903418053
-Random Forest,success_rate_advantage,25.03399380820913
-XGBoost,home_net_epa_per_play,0.13203747876096586
-XGBoost,away_net_epa_per_play,0.12149167114541096
-XGBoost,away_net_success_rate,0.0997217301722214
-XGBoost,red_zone_advantage,0.08389336896435108
-XGBoost,home_net_success_rate,0.07920636941085399
-XGBoost,rush_matchup_advantage,0.07782172453304402
-XGBoost,epa_advantage,0.058126288828738694
-XGBoost,pass_matchup_advantage,0.05713861985353948
-XGBoost,turnover_advantage,0.055397158410079216
-XGBoost,pace_differential,0.05324935536191221
+Random Forest,home_net_epa_per_play,44.313059507238776
+Random Forest,away_net_epa_per_play,43.9496123570471
+Random Forest,away_net_success_rate,41.54515569936245
+Random Forest,turnover_advantage,41.40784800380246
+Random Forest,home_net_success_rate,38.911427573563174
+Random Forest,epa_advantage,32.305013206004396
+Random Forest,red_zone_advantage,32.283083023307185
+Random Forest,third_down_advantage,31.705659926239534
+Random Forest,rush_matchup_advantage,30.60693800798686
+Random Forest,success_rate_advantage,30.12323743364485
+XGBoost,home_net_epa_per_play,0.1326330451397684
+XGBoost,away_net_success_rate,0.1254569439760571
+XGBoost,away_net_epa_per_play,0.12279135876348708
+XGBoost,turnover_advantage,0.08735356542094497
+XGBoost,home_net_success_rate,0.08476386098423037
+XGBoost,epa_advantage,0.08162210448755654
+XGBoost,third_down_advantage,0.08055683158947856
+XGBoost,rush_matchup_advantage,0.07039429881645554
+XGBoost,success_rate_advantage,0.06423874155164097
+XGBoost,red_zone_advantage,0.06242080993319649

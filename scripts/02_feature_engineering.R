@@ -340,18 +340,26 @@ print("=== PREPARING FINAL MODELING DATASET ===")
 # Select key features for modeling
 model_features <- c(
   # Primary matchup features
-  "epa_advantage", "success_rate_advantage",
-  "rush_matchup_advantage", "pass_matchup_advantage",
+  "epa_advantage",
+  "success_rate_advantage",
+  "rush_matchup_advantage",
+  #"pass_matchup_advantage",
   
   # Situational advantages
-  "red_zone_advantage", "third_down_advantage", "turnover_advantage",
+  "red_zone_advantage",
+  "third_down_advantage",
+  "turnover_advantage",
   
   # Team strength features
-  "home_net_epa_per_play", "away_net_epa_per_play",
-  "home_net_success_rate", "away_net_success_rate",
+  "home_net_epa_per_play",
+  "away_net_epa_per_play",
+  "home_net_success_rate",
+  "away_net_success_rate",
   
   # Style and context
-  "pace_differential", "divisional_game", "rest_differential",
+  #"pace_differential",
+  "divisional_game",
+  "rest_differential",
   
   # Game context
   "week", "season_phase"
