@@ -22,15 +22,19 @@ games_raw <- read_rds(here(data_raw_path, "games_raw.rds"))
 pbp_raw <- read_rds(here(data_raw_path, "pbp_raw.rds"))
 teams <- read_rds(here(data_raw_path, "teams.rds"))
 
+# Load injury data
+team_injury_summary <- read_rds(here(data_raw_path, "team_injury_summary.rds"))
+injuries_processed <- read_rds(here(data_raw_path, "injuries_processed.rds"))
+
 print("✓ Raw data loaded successfully")
 
 # ==============================================================================
-# TEAM-LEVEL STATISTICS CALCULATION
+# ENHANCED TEAM STATISTICS WITH INJURY CONTEXT
 # ==============================================================================
 
-print("=== CALCULATING TEAM STATISTICS ===")
+print("=== CALCULATING ENHANCED TEAM STATISTICS ===")
 
-# Offensive Statistics by Team-Season
+# Original offensive statistics
 offensive_stats <- pbp_raw %>%
   filter(!is.na(epa), !is.na(posteam)) %>%
   group_by(season, posteam) %>%
@@ -63,6 +67,14 @@ offensive_stats <- pbp_raw %>%
     off_air_yards_per_att = mean(air_yards[pass == 1], na.rm = TRUE),
     off_yac_per_comp = mean(yards_after_catch[complete_pass == 1], na.rm = TRUE),
     
+    # NEW: Performance variability metrics
+    off_epa_variance = var(epa, na.rm = TRUE),
+    off_epa_consistency = 1 / (1 + var(epa, na.rm = TRUE)),  # Consistency score
+    
+    # NEW: Pressure and protection metrics
+    off_sack_rate_allowed = sum(sack, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+    off_pressure_rate_allowed = sum(!is.na(qb_hit) & qb_hit == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+    
     # Turnover metrics
     off_int_rate = sum(interception, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
     off_fumble_rate = sum(fumble_lost, na.rm = TRUE) / off_plays,
@@ -74,12 +86,12 @@ offensive_stats <- pbp_raw %>%
     .groups = "drop"
   )
 
-# Defensive Statistics by Team-Season  
+# Enhanced defensive statistics
 defensive_stats <- pbp_raw %>%
   filter(!is.na(epa), !is.na(defteam)) %>%
   group_by(season, defteam) %>%
   summarise(
-    # Core defensive metrics (lower is better for defense)
+    # Core defensive metrics
     def_plays = n(),
     def_epa_allowed = mean(epa, na.rm = TRUE),
     def_success_rate_allowed = mean(success, na.rm = TRUE),
@@ -107,32 +119,107 @@ defensive_stats <- pbp_raw %>%
     def_air_yards_allowed_per_att = mean(air_yards[pass == 1], na.rm = TRUE),
     def_yac_allowed_per_comp = mean(yards_after_catch[complete_pass == 1], na.rm = TRUE),
     
+    # NEW: Defensive pressure metrics
+    def_sack_rate = sum(sack, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+    def_pressure_rate = sum(!is.na(qb_hit) & qb_hit == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+    def_qb_scramble_rate = sum(qb_scramble == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+    
+    # NEW: Coverage metrics
+    def_tight_coverage_rate = sum(complete_pass == 0 & air_yards > 0, na.rm = TRUE) / 
+      sum(air_yards > 0, na.rm = TRUE),
+    
     # Defensive takeaways
     def_int_rate = sum(interception, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
     def_fumble_recovery_rate = sum(fumble_forced, na.rm = TRUE) / def_plays,
-    def_sack_rate = sum(sack, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
     
     .groups = "drop"
   ) %>%
   rename(posteam = defteam)
 
-# Combine offensive and defensive stats
+# ==============================================================================
+# INJURY-ADJUSTED TEAM STATISTICS
+# ==============================================================================
+
+print("=== CALCULATING INJURY-ADJUSTED METRICS ===")
+
+# Calculate season-long injury impact by team
+team_injury_impact <- team_injury_summary %>%
+  group_by(season, team) %>%
+  summarise(
+    # Basic injury counts
+    avg_total_injuries = mean(total_injuries, na.rm = TRUE),
+    avg_high_severity_injuries = mean(high_severity_injuries, na.rm = TRUE),
+    avg_qb_injuries = mean(qb_injuries, na.rm = TRUE),
+    avg_skill_injuries = mean(skill_injuries, na.rm = TRUE),
+    avg_ol_injuries = mean(ol_injuries, na.rm = TRUE),
+    
+    # Injury consistency and patterns
+    injury_volatility = sd(total_injuries, na.rm = TRUE),
+    weeks_with_injuries = sum(total_injuries > 0, na.rm = TRUE),
+    injury_consistency = 1 / (1 + sd(total_injuries, na.rm = TRUE)),
+    
+    # Impact scores
+    avg_injury_impact_score = mean(injury_impact_score, na.rm = TRUE),
+    max_injury_impact_score = max(injury_impact_score, na.rm = TRUE),
+    
+    # Position-specific injury rates
+    qb_injury_weeks = sum(qb_injuries > 0, na.rm = TRUE),
+    skill_injury_weeks = sum(skill_injuries > 0, na.rm = TRUE),
+    ol_injury_weeks = sum(ol_injuries > 0, na.rm = TRUE),
+    
+    # NEW: Injury timing patterns
+    early_season_injuries = mean(total_injuries[week <= 6], na.rm = TRUE),
+    mid_season_injuries = mean(total_injuries[week > 6 & week <= 12], na.rm = TRUE), 
+    late_season_injuries = mean(total_injuries[week > 12], na.rm = TRUE),
+    
+    .groups = "drop"
+  ) %>%
+  rename(posteam = team) %>%
+  # Handle missing data
+  mutate(across(where(is.numeric), ~ifelse(is.na(.x) | is.infinite(.x), 0, .x)))
+
+print(paste("✓ Injury impact calculated for", nrow(team_injury_impact), "team-seasons"))
+
+# ==============================================================================
+# COMBINE ALL TEAM STATISTICS
+# ==============================================================================
+
+# Combine offensive, defensive, and injury stats
 team_stats_combined <- offensive_stats %>%
   left_join(defensive_stats, by = c("season", "posteam")) %>%
-  # Calculate net/efficiency metrics
+  left_join(team_injury_impact, by = c("season", "posteam")) %>%
+  # Calculate derived metrics including injury adjustments
   mutate(
-    # Net EPA advantages
+    # Original derived metrics
     net_epa_per_play = off_epa_per_play - def_epa_allowed,
     net_success_rate = off_success_rate - def_success_rate_allowed,
-    
-    # Efficiency ratios
     rush_pass_balance = off_rush_plays / (off_rush_plays + off_pass_plays),
     red_zone_efficiency = off_red_zone_td_rate - def_red_zone_td_allowed,
     third_down_efficiency = off_third_down_conv - def_third_down_allowed,
-    turnover_margin_rate = (def_int_rate + def_fumble_recovery_rate) - (off_int_rate + off_fumble_rate)
+    turnover_margin_rate = (def_int_rate + def_fumble_recovery_rate) - (off_int_rate + off_fumble_rate),
+    
+    # NEW: Injury-adjusted performance metrics
+    injury_adjusted_epa = net_epa_per_play * (1 - avg_injury_impact_score * 0.02), # Scale injury impact
+    injury_adjusted_success = net_success_rate * (1 - avg_injury_impact_score * 0.02),
+    
+    # NEW: Positional injury impacts
+    qb_injury_impact = avg_qb_injuries * 0.15,  # QB injuries heavily weighted
+    skill_injury_impact = avg_skill_injuries * 0.08,
+    ol_injury_impact = avg_ol_injuries * 0.06,
+    
+    # NEW: Depth and resilience metrics  
+    injury_resilience = off_epa_consistency * (1 + injury_consistency),
+    depth_score = 1 / (1 + avg_total_injuries),  # Teams with fewer injuries might have better depth
+    
+    # NEW: Pressure differential with injury context
+    net_pressure_rate = def_pressure_rate - off_pressure_rate_allowed,
+    injury_adjusted_protection = off_sack_rate_allowed * (1 + ol_injury_impact),
+    
+    # Handle any remaining NAs
+    across(where(is.numeric), ~ifelse(is.na(.x) | is.infinite(.x), 0, .x))
   )
 
-print(paste("✓ Team statistics calculated for", nrow(team_stats_combined), "team-seasons"))
+print(paste("✓ Enhanced team statistics calculated for", nrow(team_stats_enhanced), "team-seasons"))
 
 # ==============================================================================
 # RECENT FORM & MOMENTUM FEATURES
@@ -291,6 +378,7 @@ game_features <- games_raw %>%
     
     # Style matchups
     pace_differential = home_rush_pass_balance - away_rush_pass_balance,
+    pressure_differential = (home_net_pressure_rate %||% 0) - (away_net_pressure_rate %||% 0),
     
     # Game context features (now properly preserved)
     divisional_game = div_game,
@@ -355,6 +443,7 @@ model_features <- c(
   "away_net_epa_per_play",
   "home_net_success_rate",
   "away_net_success_rate",
+  "pressure_differential",
   
   # Style and context
   #"pace_differential",

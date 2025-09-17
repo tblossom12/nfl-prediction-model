@@ -1,11 +1,11 @@
 Feature,avg_importance,impact_level
-home_net_epa_per_play,22.222846276189273,Very High
-away_net_epa_per_play,22.036201857905294,Very High
-away_net_success_rate,20.83530632166925,Very High
-turnover_advantage,20.7476007846117,Very High
-home_net_success_rate,19.498095717273703,Very High
-epa_advantage,16.193317655245977,Very High
-red_zone_advantage,16.172751916620193,Very High
-third_down_advantage,15.893108378914505,Very High
-rush_matchup_advantage,15.338666153401658,Very High
-success_rate_advantage,15.093738087598245,Very High
+home_net_epa_per_play,20.952709926589634,Very High
+away_net_epa_per_play,19.98038670779189,Very High
+away_net_success_rate,19.572030287360157,Very High
+pressure_differential,18.613578814026837,Very High
+turnover_advantage,18.47816034170024,Very High
+home_net_success_rate,17.303102224406068,Very High
+epa_advantage,15.246376616643392,Very High
+red_zone_advantage,14.730233667766026,Very High
+third_down_advantage,14.211228666927731,Very High
+rush_matchup_advantage,13.879437824713422,Very High

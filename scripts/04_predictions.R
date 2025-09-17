@@ -32,6 +32,15 @@ modeling_data <- read_rds(here(data_processed_path, "modeling_data.rds"))
 SEASON_PHASE_LEVELS <- levels(modeling_data$season_phase)
 DIVISIONAL_GAME_LEVELS <- levels(modeling_data$divisional_game)
 
+# Load current injury data
+current_injury_summary <- tryCatch({
+  read_rds(here("data", "raw", "team_injury_summary.rds")) %>%
+    filter(season == CURRENT_SEASON)
+}, error = function(e) {
+  print("No current injury data available - using defaults")
+  data.frame()
+})
+
 print("✓ Models loaded successfully")
 print(paste("Season phase levels from training:", paste(SEASON_PHASE_LEVELS, collapse = ", ")))
 print(paste("Divisional game levels from training:", paste(DIVISIONAL_GAME_LEVELS, collapse = ", ")))
@@ -91,25 +100,57 @@ print(paste("✓ Current season data loaded:", CURRENT_SEASON))
 print("=== CALCULATING CURRENT TEAM STATS ===")
 
 # Function to calculate team stats (same as in feature engineering)
-calculate_current_team_stats <- function(pbp_data, season) {
+calculate_current_team_stats <- function(pbp_data, team_injury_summary, season) {
   
   # Offensive stats
   offensive_stats <- pbp_data %>%
     filter(!is.na(epa), !is.na(posteam)) %>%
     group_by(season, posteam) %>%
     summarise(
+      # Core offensive metrics
+      off_plays = n(),
       off_epa_per_play = mean(epa, na.rm = TRUE),
       off_success_rate = mean(success, na.rm = TRUE),
+      off_explosive_rate = mean(epa > 0.5, na.rm = TRUE),
+      
+      # Situational offense
+      off_red_zone_plays = sum(yardline_100 <= 20, na.rm = TRUE),
       off_red_zone_td_rate = mean(touchdown[yardline_100 <= 20], na.rm = TRUE),
+      off_third_down_plays = sum(down == 3, na.rm = TRUE),
       off_third_down_conv = mean(third_down_converted[down == 3], na.rm = TRUE),
+      off_fourth_down_conv = mean(fourth_down_converted[down == 4], na.rm = TRUE),
+      
+      # Rushing offense
+      off_rush_plays = sum(rush == 1, na.rm = TRUE),
       off_rush_epa_per_play = mean(epa[rush == 1], na.rm = TRUE),
       off_rush_success_rate = mean(success[rush == 1], na.rm = TRUE),
+      off_rush_yards_per_play = mean(yards_gained[rush == 1], na.rm = TRUE),
+      
+      # Passing offense
+      off_pass_plays = sum(pass == 1, na.rm = TRUE),
       off_pass_epa_per_play = mean(epa[pass == 1], na.rm = TRUE),
       off_pass_success_rate = mean(success[pass == 1], na.rm = TRUE),
       off_completion_rate = mean(complete_pass[pass == 1], na.rm = TRUE),
+      off_pass_yards_per_play = mean(yards_gained[pass == 1], na.rm = TRUE),
+      off_air_yards_per_att = mean(air_yards[pass == 1], na.rm = TRUE),
+      off_yac_per_comp = mean(yards_after_catch[complete_pass == 1], na.rm = TRUE),
+      
+      # NEW: Performance variability metrics
+      off_epa_variance = var(epa, na.rm = TRUE),
+      off_epa_consistency = 1 / (1 + var(epa, na.rm = TRUE)),  # Consistency score
+      
+      # NEW: Pressure and protection metrics
+      off_sack_rate_allowed = sum(sack, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      off_pressure_rate_allowed = sum(!is.na(qb_hit) & qb_hit == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      
+      # Turnover metrics
       off_int_rate = sum(interception, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
-      off_fumble_rate = sum(fumble_lost, na.rm = TRUE) / n(),
-      off_plays = n(),
+      off_fumble_rate = sum(fumble_lost, na.rm = TRUE) / off_plays,
+      
+      # Penalty metrics  
+      off_penalty_rate = sum(penalty, na.rm = TRUE) / off_plays,
+      off_penalty_yards_per_play = sum(penalty_yards, na.rm = TRUE) / off_plays,
+      
       .groups = "drop"
     )
   
@@ -118,30 +159,120 @@ calculate_current_team_stats <- function(pbp_data, season) {
     filter(!is.na(epa), !is.na(defteam)) %>%
     group_by(season, defteam) %>%
     summarise(
+      # Core defensive metrics
+      def_plays = n(),
       def_epa_allowed = mean(epa, na.rm = TRUE),
       def_success_rate_allowed = mean(success, na.rm = TRUE),
+      def_explosive_rate_allowed = mean(epa > 0.5, na.rm = TRUE),
+      
+      # Situational defense
+      def_red_zone_plays = sum(yardline_100 <= 20, na.rm = TRUE),
       def_red_zone_td_allowed = mean(touchdown[yardline_100 <= 20], na.rm = TRUE),
+      def_third_down_plays = sum(down == 3, na.rm = TRUE),
       def_third_down_allowed = mean(third_down_converted[down == 3], na.rm = TRUE),
+      def_fourth_down_allowed = mean(fourth_down_converted[down == 4], na.rm = TRUE),
+      
+      # Rush defense
+      def_rush_plays = sum(rush == 1, na.rm = TRUE),
       def_rush_epa_allowed = mean(epa[rush == 1], na.rm = TRUE),
       def_rush_success_allowed = mean(success[rush == 1], na.rm = TRUE),
+      def_rush_yards_allowed_per_play = mean(yards_gained[rush == 1], na.rm = TRUE),
+      
+      # Pass defense
+      def_pass_plays = sum(pass == 1, na.rm = TRUE),
       def_pass_epa_allowed = mean(epa[pass == 1], na.rm = TRUE),
       def_pass_success_allowed = mean(success[pass == 1], na.rm = TRUE),
       def_completion_rate_allowed = mean(complete_pass[pass == 1], na.rm = TRUE),
-      def_int_rate = sum(interception, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
-      def_fumble_recovery_rate = sum(fumble_forced, na.rm = TRUE) / n(),
+      def_pass_yards_allowed_per_play = mean(yards_gained[pass == 1], na.rm = TRUE),
+      def_air_yards_allowed_per_att = mean(air_yards[pass == 1], na.rm = TRUE),
+      def_yac_allowed_per_comp = mean(yards_after_catch[complete_pass == 1], na.rm = TRUE),
+      
+      # NEW: Defensive pressure metrics
       def_sack_rate = sum(sack, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      def_pressure_rate = sum(!is.na(qb_hit) & qb_hit == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      def_qb_scramble_rate = sum(qb_scramble == 1, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      
+      # NEW: Coverage metrics
+      def_tight_coverage_rate = sum(complete_pass == 0 & air_yards > 0, na.rm = TRUE) / 
+        sum(air_yards > 0, na.rm = TRUE),
+      
+      # Defensive takeaways
+      def_int_rate = sum(interception, na.rm = TRUE) / sum(pass == 1, na.rm = TRUE),
+      def_fumble_recovery_rate = sum(fumble_forced, na.rm = TRUE) / def_plays,
+      
       .groups = "drop"
     ) %>%
     rename(posteam = defteam)
   
+  team_injury_impact <- team_injury_summary %>%
+    group_by(season, team) %>%
+    summarise(
+      # Basic injury counts
+      avg_total_injuries = mean(total_injuries, na.rm = TRUE),
+      avg_high_severity_injuries = mean(high_severity_injuries, na.rm = TRUE),
+      avg_qb_injuries = mean(qb_injuries, na.rm = TRUE),
+      avg_skill_injuries = mean(skill_injuries, na.rm = TRUE),
+      avg_ol_injuries = mean(ol_injuries, na.rm = TRUE),
+      
+      # Injury consistency and patterns
+      injury_volatility = sd(total_injuries, na.rm = TRUE),
+      weeks_with_injuries = sum(total_injuries > 0, na.rm = TRUE),
+      injury_consistency = 1 / (1 + sd(total_injuries, na.rm = TRUE)),
+      
+      # Impact scores
+      avg_injury_impact_score = mean(injury_impact_score, na.rm = TRUE),
+      max_injury_impact_score = max(injury_impact_score, na.rm = TRUE),
+      
+      # Position-specific injury rates
+      qb_injury_weeks = sum(qb_injuries > 0, na.rm = TRUE),
+      skill_injury_weeks = sum(skill_injuries > 0, na.rm = TRUE),
+      ol_injury_weeks = sum(ol_injuries > 0, na.rm = TRUE),
+      
+      # NEW: Injury timing patterns
+      early_season_injuries = mean(total_injuries[week <= 6], na.rm = TRUE),
+      mid_season_injuries = mean(total_injuries[week > 6 & week <= 12], na.rm = TRUE), 
+      late_season_injuries = mean(total_injuries[week > 12], na.rm = TRUE),
+      
+      .groups = "drop"
+    ) %>%
+    rename(posteam = team) %>%
+    # Handle missing data
+    mutate(across(where(is.numeric), ~ifelse(is.na(.x) | is.infinite(.x), 0, .x)))
+  
+  
   # Combine and calculate derived metrics
   combined_stats <- offensive_stats %>%
     left_join(defensive_stats, by = c("season", "posteam")) %>%
+    left_join(team_injury_impact, by = c("season", "posteam")) %>%
+    # Calculate derived metrics including injury adjustments
     mutate(
+      # Original derived metrics
       net_epa_per_play = off_epa_per_play - def_epa_allowed,
       net_success_rate = off_success_rate - def_success_rate_allowed,
-      rush_pass_balance = off_rush_epa_per_play / (off_rush_epa_per_play + off_pass_epa_per_play),
-      turnover_margin_rate = (def_int_rate + def_fumble_recovery_rate) - (off_int_rate + off_fumble_rate)
+      rush_pass_balance = off_rush_plays / (off_rush_plays + off_pass_plays),
+      red_zone_efficiency = off_red_zone_td_rate - def_red_zone_td_allowed,
+      third_down_efficiency = off_third_down_conv - def_third_down_allowed,
+      turnover_margin_rate = (def_int_rate + def_fumble_recovery_rate) - (off_int_rate + off_fumble_rate),
+      
+      # NEW: Injury-adjusted performance metrics
+      injury_adjusted_epa = net_epa_per_play * (1 - avg_injury_impact_score * 0.02), # Scale injury impact
+      injury_adjusted_success = net_success_rate * (1 - avg_injury_impact_score * 0.02),
+      
+      # NEW: Positional injury impacts
+      qb_injury_impact = avg_qb_injuries * 0.15,  # QB injuries heavily weighted
+      skill_injury_impact = avg_skill_injuries * 0.08,
+      ol_injury_impact = avg_ol_injuries * 0.06,
+      
+      # NEW: Depth and resilience metrics  
+      injury_resilience = off_epa_consistency * (1 + injury_consistency),
+      depth_score = 1 / (1 + avg_total_injuries),  # Teams with fewer injuries might have better depth
+      
+      # NEW: Pressure differential with injury context
+      net_pressure_rate = def_pressure_rate - off_pressure_rate_allowed,
+      injury_adjusted_protection = off_sack_rate_allowed * (1 + ol_injury_impact),
+      
+      # Handle any remaining NAs
+      across(where(is.numeric), ~ifelse(is.na(.x) | is.infinite(.x), 0, .x))
     )
   
   return(combined_stats)
@@ -149,7 +280,7 @@ calculate_current_team_stats <- function(pbp_data, season) {
 
 # Calculate current season team stats
 if (nrow(current_pbp) > 0) {
-  current_team_stats <- calculate_current_team_stats(current_pbp, CURRENT_SEASON)
+  current_team_stats <- calculate_current_team_stats(current_pbp, current_injury_summary, CURRENT_SEASON)
   print(paste("✓ Current team stats calculated for", nrow(current_team_stats), "teams"))
 } else {
   # If season hasn't started, use last season's stats
@@ -252,6 +383,7 @@ create_game_features <- function(home_team, away_team, week, season_phase = NULL
     
     # Context features
     #pace_differential = home_stats$rush_pass_balance - away_stats$rush_pass_balance,
+    pressure_differential = (home_stats$net_pressure_rate %||% 0) - (away_stats$net_pressure_rate %||% 0),
     rest_differential = 0,  # Default to 0 if not available
     week = week
   )
@@ -291,6 +423,7 @@ predict_game <- function(home_team, away_team, week = 1, season_phase = NULL) {
       "away_net_epa_per_play",
       "home_net_success_rate",
       "away_net_success_rate",
+      "pressure_differential",
       #"pace_differential",
       "rest_differential",
       "week"

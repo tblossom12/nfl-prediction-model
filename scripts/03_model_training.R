@@ -52,6 +52,7 @@ numeric_features <- c(
   "away_net_epa_per_play",
   "home_net_success_rate",
   "away_net_success_rate",
+  "pressure_differential",
   #"pace_differential",
   "rest_differential",
   "week"
@@ -282,7 +283,7 @@ print("✓ SVM completed")
 print("=== EVALUATING MODELS ===")
 
 # Function to calculate comprehensive metrics
-evaluate_model <- function(actual, predicted_prob, predicted_class, model_name) {
+evaluate_model <- function(actual, predicted_prob, predicted_class, model_name, type) {
   
   # Basic accuracy
   accuracy <- mean(actual == predicted_class)
@@ -301,8 +302,9 @@ evaluate_model <- function(actual, predicted_prob, predicted_class, model_name) 
   
   return(data.frame(
     Model = model_name,
+    Type = type,
     Accuracy = round(accuracy, 4),
-    AUC = round(roc_obj, 4),
+    AUC = 1-round(roc_obj, 4),
     LogLoss = round(log_loss, 4),
     Precision = round(precision, 4),
     Recall = round(recall, 4),
@@ -312,18 +314,18 @@ evaluate_model <- function(actual, predicted_prob, predicted_class, model_name) 
 
 # Evaluate all models on validation set
 val_results <- bind_rows(
-  evaluate_model(y_val, model_results$logistic$val_prob, model_results$logistic$val_class, "Logistic"),
-  evaluate_model(y_val, model_results$random_forest$val_prob, model_results$random_forest$val_class, "Random Forest"),
-  evaluate_model(y_val, model_results$xgboost$val_prob, model_results$xgboost$val_class, "XGBoost"),
-  evaluate_model(y_val, model_results$svm$val_prob, model_results$svm$val_class, "SVM")
+  evaluate_model(y_val, model_results$logistic$val_prob, model_results$logistic$val_class, "Logistic", "val"),
+  evaluate_model(y_val, model_results$random_forest$val_prob, model_results$random_forest$val_class, "Random Forest", "val"),
+  evaluate_model(y_val, model_results$xgboost$val_prob, model_results$xgboost$val_class, "XGBoost", "val"),
+  evaluate_model(y_val, model_results$svm$val_prob, model_results$svm$val_class, "SVM", "val")
 )
 
 # Evaluate all models on test set
 test_results <- bind_rows(
-  evaluate_model(y_test, model_results$logistic$test_prob, model_results$logistic$test_class, "Logistic"),
-  evaluate_model(y_test, model_results$random_forest$test_prob, model_results$random_forest$test_class, "Random Forest"),
-  evaluate_model(y_test, model_results$xgboost$test_prob, model_results$xgboost$test_class, "XGBoost"),
-  evaluate_model(y_test, model_results$svm$test_prob, model_results$svm$test_class, "SVM")
+  evaluate_model(y_test, model_results$logistic$test_prob, model_results$logistic$test_class, "Logistic", "test"),
+  evaluate_model(y_test, model_results$random_forest$test_prob, model_results$random_forest$test_class, "Random Forest", "test"),
+  evaluate_model(y_test, model_results$xgboost$test_prob, model_results$xgboost$test_class, "XGBoost", "test"),
+  evaluate_model(y_test, model_results$svm$test_prob, model_results$svm$test_class, "SVM", "test")
 )
 
 print("VALIDATION SET PERFORMANCE:")
@@ -485,8 +487,8 @@ ensemble_val_class <- factor(ifelse(ensemble_val > 0.5, "Win", "Loss"), levels =
 ensemble_test_class <- factor(ifelse(ensemble_test > 0.5, "Win", "Loss"), levels = c("Loss", "Win"))
 
 # Evaluate ensemble
-ensemble_val_metrics <- evaluate_model(y_val, ensemble_val, ensemble_val_class, "Ensemble")
-ensemble_test_metrics <- evaluate_model(y_test, ensemble_test, ensemble_test_class, "Ensemble")
+ensemble_val_metrics <- evaluate_model(y_val, ensemble_val, ensemble_val_class, "Ensemble", "val")
+ensemble_test_metrics <- evaluate_model(y_test, ensemble_test, ensemble_test_class, "Ensemble", "test")
 
 print("ENSEMBLE MODEL PERFORMANCE:")
 cat("Validation:\n")
@@ -525,6 +527,7 @@ write_csv(predictions_summary, here(models_path, "test_predictions.csv"))
 write_csv(bind_rows(val_results, test_results, ensemble_val_metrics, ensemble_test_metrics), 
           here(models_path, "model_performance.csv"))
 
+feature_importance = bind_rows(rf_importance, xgb_importance)
 # Save feature importance
 write_csv(feature_importance, here(models_path, "feature_importance.csv"))
 

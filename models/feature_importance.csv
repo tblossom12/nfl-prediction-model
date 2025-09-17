@@ -1,21 +1,31 @@
 Model,Feature,Importance
-Random Forest,home_net_epa_per_play,44.313059507238776
-Random Forest,away_net_epa_per_play,43.9496123570471
-Random Forest,away_net_success_rate,41.54515569936245
-Random Forest,turnover_advantage,41.40784800380246
-Random Forest,home_net_success_rate,38.911427573563174
-Random Forest,epa_advantage,32.305013206004396
-Random Forest,red_zone_advantage,32.283083023307185
-Random Forest,third_down_advantage,31.705659926239534
-Random Forest,rush_matchup_advantage,30.60693800798686
-Random Forest,success_rate_advantage,30.12323743364485
-XGBoost,home_net_epa_per_play,0.1326330451397684
-XGBoost,away_net_success_rate,0.1254569439760571
-XGBoost,away_net_epa_per_play,0.12279135876348708
-XGBoost,turnover_advantage,0.08735356542094497
-XGBoost,home_net_success_rate,0.08476386098423037
-XGBoost,epa_advantage,0.08162210448755654
-XGBoost,third_down_advantage,0.08055683158947856
-XGBoost,rush_matchup_advantage,0.07039429881645554
-XGBoost,success_rate_advantage,0.06423874155164097
-XGBoost,red_zone_advantage,0.06242080993319649
+Random Forest,home_net_epa_per_play,41.770963999172125
+Random Forest,away_net_epa_per_play,39.88865019755572
+Random Forest,away_net_success_rate,39.015465458725714
+Random Forest,pressure_differential,37.115514091307695
+Random Forest,turnover_advantage,36.87449844637166
+Random Forest,home_net_success_rate,34.52889297452097
+Random Forest,epa_advantage,30.41794739595988
+Random Forest,red_zone_advantage,29.390100918448105
+Random Forest,third_down_advantage,28.365253392513555
+Random Forest,rush_matchup_advantage,27.69270722008972
+Random Forest,success_rate_advantage,27.060350941032727
+Random Forest,week,20.88946157764748
+Random Forest,rest_differential,12.351474330541588
+Random Forest,season_phase,7.986379025949283
+Random Forest,divisional_game,3.1822614871486565
+XGBoost,home_net_epa_per_play,0.13445585400714716
+XGBoost,away_net_success_rate,0.12859511599460047
+XGBoost,pressure_differential,0.11164353674597775
+XGBoost,turnover_advantage,0.08182223702882016
+XGBoost,home_net_success_rate,0.07731147429116947
+XGBoost,epa_advantage,0.07480583732690216
+XGBoost,away_net_epa_per_play,0.07212321802806126
+XGBoost,red_zone_advantage,0.07036641708394856
+XGBoost,rush_matchup_advantage,0.06616842933712473
+XGBoost,third_down_advantage,0.05720394134190873
+XGBoost,week,0.051394042274079677
+XGBoost,success_rate_advantage,0.039015558015672185
+XGBoost,rest_differential,0.02212634297082723
+XGBoost,divisional_game,0.006753420106362165
+XGBoost,season_phase,0.006214575447398289

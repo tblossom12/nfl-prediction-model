@@ -435,7 +435,8 @@ server <- function(input, output, session) {
   # Value boxes for model performance
   output$model_accuracy <- renderValueBox({
     ensemble_perf <- performance_data %>% filter(grepl("Ensemble", Model))
-    accuracy <- if(nrow(ensemble_perf) > 0) ensemble_perf$Accuracy[1] else 0.65
+    ensemble_perf_test <- ensemble_perf %>% filter(grepl("test", Type))
+    accuracy <- if(nrow(ensemble_perf_test) > 0) ensemble_perf_test$Accuracy[1] else 0.65
     
     valueBox(
       value = paste0(round(accuracy * 100, 1), "%"),
@@ -460,7 +461,8 @@ server <- function(input, output, session) {
   
   output$ensemble_performance <- renderValueBox({
     ensemble_perf <- performance_data %>% filter(grepl("Ensemble", Model))
-    auc <- if(nrow(ensemble_perf) > 0) ensemble_perf$AUC[1] else 0.72
+    ensemble_perf_test <- ensemble_perf %>% filter(grepl("test", Type))
+    auc <- if(nrow(ensemble_perf_test) > 0) ensemble_perf_test$AUC[1] else 0.72
     
     valueBox(
       value = round(auc, 3),
