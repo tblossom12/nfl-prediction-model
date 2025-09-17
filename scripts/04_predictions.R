@@ -232,8 +232,8 @@ create_game_features <- function(home_team, away_team, week, season_phase = NULL
     rush_matchup_advantage = (home_stats$off_rush_epa_per_play - away_stats$def_rush_epa_allowed) -
       (away_stats$off_rush_epa_per_play - home_stats$def_rush_epa_allowed),
     
-    pass_matchup_advantage = (home_stats$off_pass_epa_per_play - away_stats$def_pass_epa_allowed) -
-      (away_stats$off_pass_epa_per_play - home_stats$def_pass_epa_allowed),
+    #pass_matchup_advantage = (home_stats$off_pass_epa_per_play - away_stats$def_pass_epa_allowed) -
+      #(away_stats$off_pass_epa_per_play - home_stats$def_pass_epa_allowed),
     
     # Situational advantages
     red_zone_advantage = (home_stats$off_red_zone_td_rate - away_stats$def_red_zone_td_allowed) -
@@ -251,7 +251,7 @@ create_game_features <- function(home_team, away_team, week, season_phase = NULL
     away_net_success_rate = away_stats$net_success_rate,
     
     # Context features
-    pace_differential = home_stats$rush_pass_balance - away_stats$rush_pass_balance,
+    #pace_differential = home_stats$rush_pass_balance - away_stats$rush_pass_balance,
     rest_differential = 0,  # Default to 0 if not available
     week = week
   )
@@ -280,11 +280,20 @@ predict_game <- function(home_team, away_team, week = 1, season_phase = NULL) {
     
     # Prepare data for different models
     numeric_features <- c(
-      "epa_advantage", "success_rate_advantage", "rush_matchup_advantage",
-      "pass_matchup_advantage", "red_zone_advantage", "third_down_advantage", 
-      "turnover_advantage", "home_net_epa_per_play", "away_net_epa_per_play",
-      "home_net_success_rate", "away_net_success_rate", "pace_differential",
-      "rest_differential", "week"
+      "epa_advantage",
+      "success_rate_advantage",
+      "rush_matchup_advantage",
+      #"pass_matchup_advantage",
+      "red_zone_advantage",
+      "third_down_advantage", 
+      "turnover_advantage",
+      "home_net_epa_per_play",
+      "away_net_epa_per_play",
+      "home_net_success_rate",
+      "away_net_success_rate",
+      #"pace_differential",
+      "rest_differential",
+      "week"
     )
     
     # Logistic regression prediction
